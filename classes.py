@@ -1,7 +1,9 @@
 import pathlib
 import acoustid
+import requests
+import os
 from enum import Enum
-from mutagen.mp4 import MP4
+from mutagen.mp4 import MP4, MP4Cover
 from dataclasses import dataclass
 
 class Tag(Enum):
@@ -12,9 +14,16 @@ class Tag(Enum):
     Genre = '\xa9gen'
     Year = '\xa9day'
     TrackNumber = 'trkn'
+    Cover = 'covr'
 
     def get(self, file):
         return file.get(self.value)
+
+    def set(self, file, value):
+        try:
+            file[self.value] = value
+        except Exception as ex:
+            print(f'[mango] Tag Error: {self.value} {value} {ex}')
 
 class TrackProfile:
     def __init__(self, file_path: pathlib.Path):
@@ -73,6 +82,35 @@ class TrackProfile:
     def Fingerprint(self):
         return self._Fingerprint
 
+    def apply_tags(self, tags: dict):
+        print('[mango] Applying new metadata/tags...')
+
+        mp4 = MP4(self.Path)
+
+        # Set Tags
+        Tag.Name.set(mp4, tags.get('title', ''))
+        Tag.Artist.set(mp4, tags.get('artist', ''))
+        Tag.Album.set(mp4, tags.get('album', ''))
+        Tag.AlbumArtist.set(mp4, tags.get('albumartist', ''))
+        Tag.Genre.set(mp4, tags.get('genre', '')[0])
+        Tag.TrackNumber.set(mp4, [(tags.get('tracknumber'), tags.get('totaltracks'))])
+
+        date = tags.get('date')
+        if date:
+            Tag.Year.set(mp4, date[:4])
+
+        # Get & Set Cover Art from CoverArtArchive
+        if tags['musicbrainz_albumid']:
+            url = f"https://coverartarchive.org/release/{tags['musicbrainz_albumid']}/front-500"
+            # print(url)
+            # print(tags['musicbrainz_albumid'])
+            res = requests.get(url, headers={"User-Agent": os.getenv('USER_AGENT')}, timeout=30) 
+            if res.ok:
+                Tag.Cover.set(mp4, [MP4Cover(res.content, imageformat=MP4Cover.FORMAT_JPEG)])
+            else:
+                print('[mango] Tag Error: No Cover Art')
+        mp4.save()
+        print('[mango] Metadata/Tags Saved...')
 
 @dataclass
 class TrackCandidate:
@@ -86,4 +124,5 @@ class TrackCandidate:
     year: int | None = None             # release year
     tracknumber: int | None = None      # position on that release
     release_type: str | None = None     # "Album", "Single", "Compilation", ...
-    score: float = 0.0                  # filled in later by pick_best()
+    score: float = 0.0                  # filled in later by scoring
+    has_art: bool | None = None         # release data has album art
