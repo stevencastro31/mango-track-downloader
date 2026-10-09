@@ -15,15 +15,17 @@ class Tag(Enum):
     Year = '\xa9day'
     TrackNumber = 'trkn'
     Cover = 'covr'
+    Disk = 'disk'
 
     def get(self, file):
         return file.get(self.value)
 
     def set(self, file, value):
         try:
+            # print(f'[mango td] Setting {self.value} tag...')
             file[self.value] = value
         except Exception as ex:
-            print(f'[mango] Tag Error: {self.value} {value} {ex}')
+            print(f'[mango td] Tag Error: {self.value} {value} {ex}')
 
 class TrackProfile:
     def __init__(self, file_path: pathlib.Path):
@@ -83,7 +85,7 @@ class TrackProfile:
         return self._Fingerprint
 
     def apply_tags(self, tags: dict):
-        print('[mango] Applying new metadata/tags...')
+        print('[mango td] Applying new metadata/tags...')
 
         mp4 = MP4(self.Path)
 
@@ -91,9 +93,11 @@ class TrackProfile:
         Tag.Name.set(mp4, tags.get('title', ''))
         Tag.Artist.set(mp4, tags.get('artist', ''))
         Tag.Album.set(mp4, tags.get('album', ''))
-        Tag.AlbumArtist.set(mp4, tags.get('albumartist', ''))
-        Tag.Genre.set(mp4, tags.get('genre', '')[0])
+        Tag.AlbumArtist.set(mp4, [tags.get('albumartist', '')])
+        genre = tags.get('genre', '')
+        Tag.Genre.set(mp4, genre[0] if genre else '')
         Tag.TrackNumber.set(mp4, [(tags.get('tracknumber'), tags.get('totaltracks'))])
+        Tag.Disk.set(mp4, [(tags.get('discnumber'), tags.get('discnumber'))])
 
         date = tags.get('date')
         if date:
@@ -108,9 +112,9 @@ class TrackProfile:
             if res.ok:
                 Tag.Cover.set(mp4, [MP4Cover(res.content, imageformat=MP4Cover.FORMAT_JPEG)])
             else:
-                print('[mango] Tag Error: No Cover Art')
+                print('[mango td] Tag Error: No Cover Art')
         mp4.save()
-        print('[mango] Metadata/Tags Saved...')
+        print('[mango td] Metadata/Tags Saved...')
 
 @dataclass
 class TrackCandidate:
@@ -125,4 +129,3 @@ class TrackCandidate:
     tracknumber: int | None = None      # position on that release
     release_type: str | None = None     # "Album", "Single", "Compilation", ...
     score: float = 0.0                  # filled in later by scoring
-    has_art: bool | None = None         # release data has album art

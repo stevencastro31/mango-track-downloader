@@ -27,6 +27,7 @@ WEIGHTS = {
 }
 TYPE_PREF = {"Album": 0.7, "Single": 1.0, "EP": 0.7, "Compilation": 0.2}
 MIN_SIMILARITY = 0.25
+MIN_ACOUSTID_CONFIDENCE = 0.25
 MIN_MARGIN = 0.02
 LENGTH_WINDOW_S = 30
 MAX_GENRES = 5
@@ -100,6 +101,9 @@ def _parse_acoustid_to_candidate(document: dict):
                 length=rec.get("duration"),  # seconds (AcoustID reports seconds)
                 confidence=conf,
             )
+
+            if base['confidence'] < MIN_ACOUSTID_CONFIDENCE:    # don't add candidate that are far off (confidence levels)
+                continue
 
             emitted = False # did this recording produce any release-level TrackCandidate?
             for rg in rec.get('releasegroups', []):
@@ -180,14 +184,17 @@ def _pick_top_candidate(profile: TrackProfile, candidates: list[TrackCandidate])
 
     # get top 10 candidates (select the first top most w/ album cover)
     for i in range(10):
-        release_id = ranked[i].release_id
-        print(f"[mango td] Checking Candidate #{i} for cover art: {COVER_ART_ARCHIVE_URL}/{release_id}/front")
-        res = requests.get(f"{COVER_ART_ARCHIVE_URL}{release_id}/front", headers={"User-Agent": USER_AGENT}, timeout=15,allow_redirects=False) # check statust (if an album cover exists)
-        if res.status_code == 404:
-            continue
-        if res.status_code in (301, 302, 303, 307, 308):
-            return ranked[i], None
-        
+        try:
+            release_id = ranked[i].release_id
+            print(f"[mango td] Checking Candidate #{i} for cover art: {COVER_ART_ARCHIVE_URL}/{release_id}/front")
+            res = requests.get(f"{COVER_ART_ARCHIVE_URL}{release_id}/front", headers={"User-Agent": USER_AGENT}, timeout=15,allow_redirects=False) # check statust (if an album cover exists)
+            if res.status_code == 404:
+                continue
+            if res.status_code in (301, 302, 303, 307, 308):
+                return ranked[i], None
+        except IndexError:
+            print('[mang td] No more candidates...')
+            
     return ranked[0], None
 
 # 3.4 fetch release from MusicBrainz base on candidate release Id

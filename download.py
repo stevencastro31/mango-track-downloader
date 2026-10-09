@@ -67,11 +67,13 @@ for track_file_path in downloaded_track_file_paths:
     profile = TrackProfile(track_file_path)
 
     print(f'[mango td] Identifying: {profile.Path}')
+    # tags, reason = identifier.identify(profile)
+    # profile.apply_tags(tags)
     try:
         tags, reason = identifier.identify(profile)
         profile.apply_tags(tags)
     except Exception as ex:
-        print(f'[mango td] An error occured {ex}...')
+        print(f'[mango td] An error occured {ex}... {ex.args}')
         print(f'[mango td] Skipping track: {profile.Path}')
 
     time.sleep(1.0)
