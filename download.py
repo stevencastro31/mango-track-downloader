@@ -61,7 +61,6 @@ if not skip_sanitize:
 # 4. determine track meta data and apply tags
 downloaded_track_file_paths = [pathlib.Path(os.path.join('.\\tracks', file)) for file in os.listdir('./tracks')]
 
-
 for track_file_path in downloaded_track_file_paths:
     print('[mango td] Creating track profile...')
     profile = TrackProfile(track_file_path)
@@ -75,8 +74,6 @@ for track_file_path in downloaded_track_file_paths:
     except Exception as ex:
         print(f'[mango td] An error occured {ex}... {ex.args}')
         print(f'[mango td] Skipping track: {profile.Path}')
-
     time.sleep(1.0)
-
 print('[mango td] SCRIPT COMPLETE!')
 
